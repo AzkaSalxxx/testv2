@@ -208,16 +208,16 @@ cursor:pointer;
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
-  getFirestore,
-  collection,
-  addDoc,
-  serverTimestamp,
-  query,
-  orderBy,
-  onSnapshot,
-  deleteDoc,
-  doc
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+      getFirestore,
+      collection,
+      addDoc,
+      serverTimestamp,
+      query,
+      orderBy,
+      onSnapshot,
+      deleteDoc,
+      doc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     import {
       getAuth,
@@ -242,6 +242,7 @@ cursor:pointer;
 
     let firstLoad = true;
     let unsubscribeMessages = null;
+    let selectedMessages = [];
 
     window.showAdminLogin = function(){
       document.getElementById("adminLoginBox").style.display = "block";
@@ -268,9 +269,9 @@ cursor:pointer;
 
     window.logoutAdmin = async function(){
       await signOut(auth);
+      selectedMessages = [];
       alert("Berhasil logout!");
     };
-    let selectedMessages = [];
 
     window.toggleMessageSelection = function(id){
       if(selectedMessages.includes(id)){
@@ -279,6 +280,170 @@ cursor:pointer;
         selectedMessages.push(id);
       }
     };
+
+    window.deleteSelectedMessages = async function(){
+      if(selectedMessages.length === 0){
+        alert("Pilih pesan dulu!");
+        return;
+      }
+
+      if(!confirm(`Hapus ${selectedMessages.length} pesan yang dipilih?`)){
+        return;
+      }
+
+      try{
+        for(const id of selectedMessages){
+          await deleteDoc(doc(db, "messages", id));
+        }
+        selectedMessages = [];
+        alert("Pesan terpilih berhasil dihapus!");
+      }catch(error){
+        alert("Gagal menghapus: " + error.code + " - " + error.message);
+        console.error(error);
+      }
+    };
+
+    window.deleteMessage = async function(id){
+      if(!confirm("Hapus pesan ini?")) return;
+
+      try{
+        await deleteDoc(doc(db, "messages", id));
+        alert("Pesan berhasil dihapus!");
+      }catch(error){
+        alert("Gagal menghapus: " + error.code + " - " + error.message);
+        console.error(error);
+      }
+    };
+
+    onAuthStateChanged(auth, (user) => {
+      if(user){
+        document.getElementById("adminLoginBox").style.display = "none";
+        document.getElementById("adminPanel").style.display = "block";
+        loadMessages();
+      }else{
+        document.getElementById("adminPanel").style.display = "none";
+        if(unsubscribeMessages){
+          unsubscribeMessages();
+          unsubscribeMessages = null;
+        }
+      }
+    });
+
+    function loadMessages(){
+      const messagesList = document.getElementById("messagesList");
+
+      if(unsubscribeMessages){
+        unsubscribeMessages();
+      }
+
+      const q = query(
+        collection(db, "messages"),
+        orderBy("createdAt", "desc")
+      );
+
+      unsubscribeMessages = onSnapshot(q, (snapshot) => {
+        if(!firstLoad){
+          snapshot.docChanges().forEach((change) => {
+            if(change.type === "added"){
+              alert("📩 Ada pesan baru masuk!");
+            }
+          });
+        }
+
+        firstLoad = false;
+        selectedMessages = [];
+        messagesList.innerHTML = "";
+
+        if(snapshot.empty){
+          messagesList.innerHTML = "<p>Belum ada pesan masuk.</p>";
+          return;
+        }
+
+        snapshot.forEach((document) => {
+          const data = document.data();
+          const id = document.id;
+
+          let tanggal = "Belum ada tanggal";
+          if(data.createdAt){
+            tanggal = data.createdAt.toDate().toLocaleString("id-ID");
+          }
+
+          messagesList.innerHTML += `
+            <div class="message-card">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+                <input
+                  type="checkbox"
+                  onchange="toggleMessageSelection('${id}')"
+                  style="width:20px;height:20px;padding:0;margin:0;flex-shrink:0;accent-color:#2563eb;">
+                <h3 style="margin:0;">${data.name || "Tanpa nama"}</h3>
+              </div>
+
+              <p><b>Email:</b> ${data.email || "-"}</p>
+              <p><b>Pesan:</b><br>${data.message || "-"}</p>
+              <small>${tanggal}</small>
+            </div>
+          `;
+        });
+      }, (error) => {
+        messagesList.innerHTML = "<p>Gagal mengambil pesan. Cek Firestore Rules.</p>";
+        console.error(error);
+      });
+    }
+
+    window.sendMessage = async function(){
+      const btn = document.getElementById("sendBtn");
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const message = document.getElementById("message").value.trim();
+
+      if(!name || !email || !message){
+        alert("Isi semua form dulu ya!");
+        return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if(!emailRegex.test(email)){
+        alert("Format email tidak valid!");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = "Mengirim...";
+
+      try{
+        await addDoc(collection(db, "messages"), {
+          name,
+          email,
+          message,
+          createdAt: serverTimestamp()
+        });
+
+        alert("✅ Pesan berhasil dikirim ke database!");
+        document.getElementById("name").value = "";
+        document.getElementById("email").value = "";
+        document.getElementById("message").value = "";
+      }catch(error){
+        alert("❌ Gagal mengirim pesan: " + error.code + " - " + error.message);
+        console.error(error);
+      }finally{
+        btn.disabled = false;
+        btn.innerHTML = "Kirim Pesan";
+      }
+    };
+  </script>
+
+  <script>
+    const reveals = document.querySelectorAll(".reveal");
+
+    function revealOnScroll(){
+      reveals.forEach((element) => {
+        const windowHeight = window.innerHeight;
+        const revealTop = element.getBoundingClientRect().top;
+        if(revealTop < windowHeight - 100){
+          element.classList.add("active");
+        }
+      });
+    }
 
     window.addEventListener("scroll", revealOnScroll);
     revealOnScroll();
