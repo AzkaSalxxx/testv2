@@ -180,7 +180,20 @@
       <div id="adminPanel" class="admin-box">
         <h2>Pesan Masuk</h2>
         <button class="logout-btn" onclick="logoutAdmin()">Logout</button>
-        <div id="messagesList">Loading...</div>
+        <button onclick="deleteSelectedMessages()"
+style="
+background:#dc2626;
+color:white;
+border:none;
+padding:12px 20px;
+border-radius:10px;
+margin-bottom:15px;
+cursor:pointer;
+">
+🗑 Hapus Terpilih
+</button>
+
+<div id="messagesList"></div>
       </div>
 
       <footer class="reveal">
