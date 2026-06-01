@@ -421,7 +421,15 @@ cursor:pointer;
     alert("Pesan maksimal 500 karakter!");
     return;
 }
-      
+      if(name.length > 50){
+    alert("Nama maksimal 50 karakter!");
+    return;
+}
+
+if(email.length > 100){
+    alert("Email maksimal 100 karakter!");
+    return;
+}
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if(!emailRegex.test(email)){
         alert("Format email tidak valid!");
